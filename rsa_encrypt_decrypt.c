@@ -2,7 +2,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include <time.h>
 #include "rsa_encrypt_decrypt.h"
 
 // Расширенный алгоритм Евклида
@@ -96,3 +96,117 @@ void decrypt_message(long long *encrypted, char *decrypted, int length, long lon
     decrypted[length] = '\0';
 }
     
+
+
+
+long long get_rand(long long min, long long max){
+    return min + rand() % (max - min + 1); 
+}
+
+
+long long modular_pow(long long base, long long exp, long long mod){
+    long long result = 1;
+    base %= mod;
+    while (exp > 0){
+        if (exp % 2 == 1 ) result = (result * base) % mod;
+        base = (base * base) % mod;
+        exp /=2;
+    }
+    return result;
+}
+
+
+int is_prime(long long n, int k){
+    if (n < 2) return 0;
+    if (n != 2 && n % 2 == 0) return 0;
+    
+    long long d = n - 1;
+    int s = 0;
+    while(d % 2 == 0){
+        d /= 2;
+        s++;
+    }
+    
+    for (int i = 0; i < k; i ++){
+        long long a = 2 + rand() % (n - 3);
+        long long x = modular_pow(a, d, n);
+        if( x == 1 || x == n-1) continue;
+        
+        int composite = 1;
+        for (int r = 0; r < s - 1; r++) {
+            x = modular_pow(x, 2, n);
+            if (x == n - 1) {
+                composite = 0;
+                break;
+            }
+        }
+        if (composite) return 0; 
+    }
+    return 1; 
+}
+        
+        
+long long get_rand_prime(long long min, long long max){
+    long long prime_num;
+    do{
+        prime_num = get_rand(min,max);
+    }while(!is_prime(prime_num, 40));
+    
+    return prime_num;
+    
+}
+
+
+
+void input_decrypt(){
+    long long c, n;
+    int length;
+
+
+    printf("Enter your private key c and public key n: ");
+    scanf("%lld %lld", &c, &n);
+    printf("\n");
+
+    printf("Enter message length: ");
+    scanf("%d", &length);
+
+    long long encrypted_message[length + 1];
+    printf("Enter encrypted message: ");
+    for(int i = 0; i < length; i++){
+        scanf("%lld", &encrypted_message[i]);
+    }
+
+    char decrypted_message[length + 1];
+
+    decrypt_message(encrypted_message, decrypted_message, length, c, n);
+    printf("Decrypted message:\n %s\n", decrypted_message);
+}
+
+
+void input_encrypt(){
+    long long public_key_d;
+    long long public_key_n;
+    char message[MAX_MESSAGE_LENGTH];
+    printf("Enter public keys N and d: ");
+    scanf("%lld %lld", &public_key_n, &public_key_d);
+    getchar();  // Очищаем буфер ввода, чтобы fgets работал корректно
+
+    printf("Enter message to encrypt: ");
+    fgets(message, MAX_MESSAGE_LENGTH, stdin);
+    
+    int length = strlen(message);
+    if (message[length - 1] == '\n') {
+        message[length - 1] = '\0';  // Убираем символ новой строки в конце строки
+        length--;  // Уменьшаем длину на 1, если убрали символ новой строки
+    }
+
+    long long encrypted[length];
+    encrypt_message(message, encrypted, public_key_d, public_key_n);
+    printf("Message length: %d\n", length);
+
+    printf("Encrypted message: \n");
+    for (int i = 0; i < length; i++) {
+        printf("%lld ", encrypted[i]);
+    }
+    printf("\n");
+}
