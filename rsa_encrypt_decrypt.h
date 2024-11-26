@@ -39,3 +39,9 @@ long long get_rand_prime(long long min, long long max);
 void input_decrypt();
 
 void input_encrypt();
+
+void input_user_keys(user *u, const char *filename);
+
+void file_input_decrypt(user *u, const char *input_filename, const char *output_filename);
+
+void file_input_encrypt(user *u, const char *input_filename, const char *output_filename);

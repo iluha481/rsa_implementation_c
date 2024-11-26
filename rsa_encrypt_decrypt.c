@@ -5,6 +5,7 @@
 #include <time.h>
 #include "rsa_encrypt_decrypt.h"
 
+
 // Расширенный алгоритм Евклида
 long long extended_gcd(long long a, long long b, long long *x, long long *y) {
     if (b == 0) {
@@ -79,6 +80,12 @@ void init_user_keys(user *u, long long p, long long q) {
 
     printf("User keys\np: %lld \nq: %lld \n\npublic key N: %lld  \npublic key d: %lld \nprivate key c: %lld\n\n",
             u->p, u->q, u->n,  u->d, u->c);
+    FILE *file = fopen("user_keys.txt", "w");
+    if(file != NULL){
+        fprintf(file, "%lld\n%lld\n%lld\n",
+                u->n, u->d, u->c);
+        fclose(file);
+    }
 }
 
 // Функция шифрования строки
@@ -104,18 +111,6 @@ long long get_rand(long long min, long long max){
 }
 
 
-long long modular_pow(long long base, long long exp, long long mod){
-    long long result = 1;
-    base %= mod;
-    while (exp > 0){
-        if (exp % 2 == 1 ) result = (result * base) % mod;
-        base = (base * base) % mod;
-        exp /=2;
-    }
-    return result;
-}
-
-
 int is_prime(long long n, int k){
     if (n < 2) return 0;
     if (n != 2 && n % 2 == 0) return 0;
@@ -129,12 +124,12 @@ int is_prime(long long n, int k){
     
     for (int i = 0; i < k; i ++){
         long long a = 2 + rand() % (n - 3);
-        long long x = modular_pow(a, d, n);
+        long long x = mod_pow(a, d, n);
         if( x == 1 || x == n-1) continue;
         
         int composite = 1;
         for (int r = 0; r < s - 1; r++) {
-            x = modular_pow(x, 2, n);
+            x = mod_pow(x, 2, n);
             if (x == n - 1) {
                 composite = 0;
                 break;
@@ -144,8 +139,8 @@ int is_prime(long long n, int k){
     }
     return 1; 
 }
-        
-        
+
+
 long long get_rand_prime(long long min, long long max){
     long long prime_num;
     do{
@@ -209,4 +204,102 @@ void input_encrypt(){
         printf("%lld ", encrypted[i]);
     }
     printf("\n");
+}
+
+void input_user_keys(user *u, const char *filename){
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Failed to open keys file");
+        return;
+    }
+
+    long long n, d, c;
+
+    if (fscanf(file, "%lld %lld %lld", &n, &d, &c)!= 3) {
+        printf("Error reading keys from file.\n");
+        fclose(file);
+        return;
+    }
+    fclose(file);
+
+    u->n = n;
+    u->d = d; 
+    u->c = c;
+    printf("User keys loaded from file:\n");
+    printf("n: %lld \nd: %lld \nc: %lld", u->n, u->d, u->c);
+}
+
+void file_input_decrypt(user *u,const char *input_filename, const char *output_filename) {
+    FILE *input_file = fopen(input_filename, "r");
+    if (!input_file) {
+        perror("Failed to open input file");
+        return;
+    }
+
+    int length;
+    if (fscanf(input_file, "%d", &length) != 1) {
+        printf("Error reading message length from input file.\n");
+        fclose(input_file);
+        return;
+    }
+
+    long long encrypted_message[length];
+    for (int i = 0; i < length; i++) {
+        if (fscanf(input_file, "%lld", &encrypted_message[i]) != 1) {
+            printf("Error reading encrypted message from input file.\n");
+            fclose(input_file);
+            return;
+        }
+    }
+    fclose(input_file);
+
+    char decrypted_message[length + 1];
+    decrypt_message(encrypted_message, decrypted_message, length, u->c, u->n);
+
+    FILE *output_file = fopen(output_filename, "w");
+    if (!output_file) {
+        perror("Failed to open output file");
+        return;
+    }
+
+    fprintf(output_file, "Decrypted message:\n%s\n", decrypted_message);
+    fclose(output_file);
+}
+
+void file_input_encrypt(user *u, const char *input_filename, const char *output_filename) {
+    FILE *input_file = fopen(input_filename, "r");
+    if (!input_file) {
+        perror("Failed to open input file");
+        return;
+    }
+
+    char message[MAX_MESSAGE_LENGTH];
+    if (!fgets(message, MAX_MESSAGE_LENGTH, input_file)) {
+        printf("Error reading message from input file.\n");
+        fclose(input_file);
+        return;
+    }
+    fclose(input_file);
+
+    int length = strlen(message);
+    if (message[length - 1] == '\n') {
+        message[length - 1] = '\0'; // Убираем символ новой строки
+        length--;
+    }
+
+    long long encrypted[length];
+    encrypt_message(message, encrypted, u->d, u->n);
+
+    FILE *output_file = fopen(output_filename, "w");
+    if (!output_file) {
+        perror("Failed to open output file");
+        return;
+    }
+
+    fprintf(output_file, "%d\n", length);
+    for (int i = 0; i < length; i++) {
+        fprintf(output_file, "%lld ", encrypted[i]);
+    }
+    fprintf(output_file, "\n");
+    fclose(output_file);
 }
